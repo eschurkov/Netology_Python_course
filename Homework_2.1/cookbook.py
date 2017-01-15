@@ -1,18 +1,19 @@
 import json
 import yaml
 
-# для генерации файла json из txt
+# для генерации файла json
 def dump_json (jsonfilename = 'cookbook.json'):
 	with open(jsonfilename, 'w', encoding='utf-8') as f:
 		txtcookbook = read_cookbook('cookbook.txt')
 		jsoncookbook = json.dump(txtcookbook, f)
 
-# для генерации файла yaml из txt
+# для генерации файла yaml
 def dump_yaml (yamlfilename = 'cookbook.yaml'):
 	with open(yamlfilename, 'w', encoding='utf-8') as f:
 		txtcookbook = read_cookbook('cookbook.json')
 		yamlcookbook = yaml.dump(txtcookbook, f)
 
+# чтение файла с книгой рецептов, любой формат - txt, json, yaml
 def read_cookbook(cookbook_filename):
 	with open(cookbook_filename) as cookbook_file:
 		if cookbook_filename.split('.')[-1] == 'txt':
@@ -68,7 +69,7 @@ def print_cookbook():
 		print(key)
 		print("".join(list(('{product} {quantity} {unit}\n'.format(**ingridient) for ingridient in cookbook_item))))
 
-functions = {'1': print_cookbook, '2': create_shop_list, '3': dump_json, '4': dump_yaml}
+functions = {'1': print_cookbook, '2': create_shop_list, '8': dump_json, '9': dump_yaml}
 while True:
 	user_input = input('Выберите действие:\n1 - Вывести кулинарную книгу.\n2 - Составить меню и список покупок.\nДля выхода введите любой другой символ.\n=> ')
 	functions.get(user_input, exit)()
