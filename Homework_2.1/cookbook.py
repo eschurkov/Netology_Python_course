@@ -3,19 +3,19 @@ import yaml
 
 # для генерации файла json
 def dump_json (jsonfilename = 'cookbook.json'):
-	with open(jsonfilename, 'w', encoding='utf-8') as f:
+	with open(jsonfilename, 'w', encoding = 'utf-8') as f:
 		txtcookbook = read_cookbook('cookbook.txt')
-		jsoncookbook = json.dump(txtcookbook, f)
+		jsoncookbook = json.dump(txtcookbook, f, ensure_ascii = False, indent = 2)
 
 # для генерации файла yaml
 def dump_yaml (yamlfilename = 'cookbook.yaml'):
-	with open(yamlfilename, 'w', encoding='utf-8') as f:
-		txtcookbook = read_cookbook('cookbook.json')
-		yamlcookbook = yaml.dump(txtcookbook, f)
+	with open(yamlfilename, 'w', encoding = 'utf-8') as f:
+		txtcookbook = read_cookbook('cookbook.txt')
+		yamlcookbook = yaml.dump(txtcookbook, f, allow_unicode = True)
 
 # чтение файла с книгой рецептов, любой формат - txt, json, yaml
 def read_cookbook(cookbook_filename):
-	with open(cookbook_filename) as cookbook_file:
+	with open(cookbook_filename, encoding = 'utf-8') as cookbook_file:
 		if cookbook_filename.split('.')[-1] == 'txt':
 			cookbook = {
 				line.strip(): [

@@ -1,1 +1,53 @@
-{"\u042f\u0431\u043b\u043e\u0447\u043d\u044b\u0439 \u043f\u0438\u0440\u043e\u0433": [{"unit": "\u0448\u0442", "quantity": "1", "product": "\u042f\u0439\u0446\u0430"}, {"unit": "\u0433", "quantity": "300", "product": "\u041c\u0443\u043a\u0430"}, {"unit": "\u0433", "quantity": "60", "product": "\u041c\u0430\u0441\u043b\u043e"}, {"unit": "\u0433", "quantity": "80", "product": "\u042f\u0431\u043b\u043e\u043a\u0438"}], "\u041e\u043c\u043b\u0435\u0442": [{"unit": "\u0448\u0442", "quantity": "2", "product": "\u042f\u0439\u0446\u0430"}, {"unit": "\u043c\u043b", "quantity": "50", "product": "\u041c\u043e\u043b\u043e\u043a\u043e"}, {"unit": "\u0433", "quantity": "100", "product": "\u041f\u043e\u043c\u0438\u0434\u043e\u0440"}], "\u0421\u0443\u043f": [{"unit": "\u043c\u043b", "quantity": "100", "product": "\u0412\u043e\u0434\u0430"}, {"unit": "\u0433", "quantity": "300", "product": "\u041f\u043e\u043c\u0438\u0434\u043e\u0440"}]}
+{
+  "Омлет": [
+    {
+      "unit": "шт",
+      "quantity": "2",
+      "product": "Яйца"
+    },
+    {
+      "unit": "мл",
+      "quantity": "50",
+      "product": "Молоко"
+    },
+    {
+      "unit": "г",
+      "quantity": "100",
+      "product": "Помидор"
+    }
+  ],
+  "Суп": [
+    {
+      "unit": "мл",
+      "quantity": "100",
+      "product": "Вода"
+    },
+    {
+      "unit": "г",
+      "quantity": "300",
+      "product": "Помидор"
+    }
+  ],
+  "Яблочный пирог": [
+    {
+      "unit": "шт",
+      "quantity": "1",
+      "product": "Яйца"
+    },
+    {
+      "unit": "г",
+      "quantity": "300",
+      "product": "Мука"
+    },
+    {
+      "unit": "г",
+      "quantity": "60",
+      "product": "Масло"
+    },
+    {
+      "unit": "г",
+      "quantity": "80",
+      "product": "Яблоки"
+    }
+  ]
+}
