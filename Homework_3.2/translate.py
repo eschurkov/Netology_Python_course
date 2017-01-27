@@ -1,14 +1,19 @@
 import requests
 import os
+import glob
 
 
 def read_news(news_filename):
     news = ''
     if os.path.exists(news_filename):
         with open(news_filename, encoding='utf-8') as news_file:
-            # news = '\n\r'.join(list(line.strip() for line in news_file if line.strip()))
             news = news_file.read()
     return news
+
+
+def find_files(source_directory):
+    files_path = os.path.join(source_directory, '*.txt')
+    return glob.glob(files_path)
 
 
 def detect_lang(text):
@@ -41,18 +46,48 @@ def translate_it(text, from_lang, to_lang):
 
 
 def write_translated_file(to_filename, news_text):
+    if not (os.path.exists(os.path.dirname(to_filename))):
+        os.mkdir(os.path.dirname(to_filename))
     with open(to_filename, 'w', encoding='utf-8') as news_file:
         news_file.write(news_text)
 
 
-source_filename = input('Путь к файлу с новостями: ').strip()
-destination_filename = input('Путь к файлу с переводом: ').strip()
+def translate_file(source_filename, destination_filename, from_language, to_language):
+    translated_text = translate_it(read_news(source_filename), from_language, to_language)
+    write_translated_file(destination_filename, translated_text)
 
-recommended_lang = detect_lang(read_news(source_filename))
 
-from_language = input(
-    'Язык, с которого перевести (рекомендуемый - "' + recommended_lang + '", также можете оставить пустым): ').strip()
-to_language = input('Язык, на который перевести: ')
+def translate_one_file():
+    source_filename = input('Путь к файлу с новостями: ').strip()
+    destination_filename = input('Путь к файлу с переводом: ').strip()
 
-translated_text = translate_it(read_news(source_filename), from_language, to_language)
-write_translated_file(destination_filename, translated_text)
+    recommended_lang = detect_lang(read_news(source_filename))
+
+    from_language = input(
+        'Язык, с которого перевести (рекомендуемый - "' + recommended_lang + '", также можете оставить пустым): ')
+    to_language = input('Язык, на который перевести: ')
+
+    translate_file(source_filename, destination_filename, from_language, to_language)
+
+
+def translate_directory():
+    source_directory = input('Путь к папке с файлами новостей: ').strip()
+    destination_directory = input('Путь к папке с результатом перевода: ').strip()
+    from_language = ''
+    to_language = input('Язык, на который перевести: ')
+
+    source_files = find_files(source_directory)
+    for source_filename in source_files:
+        new_name = os.path.basename(source_filename).split('.')[0] + '-' + to_language + '.txt'
+        destination_filename = os.path.join(destination_directory, new_name)
+        translate_file(source_filename, destination_filename, from_language, to_language)
+
+
+functions = {'1': translate_one_file, '2': translate_directory}
+
+while True:
+    user_input = input(
+        'Выберите действие:\n'
+        '1 - Перевести один файл с новостями.\n2 - Перевести все файлы с новостями в папке.'
+        '\nДля выхода введите любой другой символ.\n=> ')
+    functions.get(user_input, exit)()
