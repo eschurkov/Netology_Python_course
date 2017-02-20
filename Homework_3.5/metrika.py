@@ -1,3 +1,4 @@
+import json
 from urllib.parse import urlencode, urlparse, urljoin
 from pprint import pprint
 import requests
@@ -19,14 +20,11 @@ class YandexMetrika(object):
     _METRIKA_MANAGEMENT_URL = 'https://api-metrika.yandex.ru/management/v1/'
     token = None
 
-    def __init__(self, token):
-        self.token = token
-
     def get_header(self):
         return {
             'Content-Type': 'application/json',
             'Authorization': 'OAuth {}'.format(self.token),
-            'User-Agent': 'asdasdasd'
+            'User-Agent': 'Google Chrome 56.0.2924 (WebKit 537.36)'
         }
 
     @property
@@ -37,6 +35,11 @@ class YandexMetrika(object):
         counter_list = [c['id'] for c in response.json()['counters']]
         return counter_list
 
+
+class YMReports(YandexMetrika):
+    def __init__(self, token):
+        self.token = token
+
     def get_visits_count(self, counter_id):
         url = urljoin(self._METRIKA_STAT_URL, 'data')
         headers = self.get_header()
@@ -45,16 +48,66 @@ class YandexMetrika(object):
             'metrics': 'ym:s:visits'
         }
         response = requests.get(url, params, headers=headers)
-        pprint(response.json())
+        # pprint(response.json())
         visits_count = response.json()['data'][0]['metrics'][0]
         return visits_count
 
+    def get_pageviews_count(self, counter_id):
+        url = urljoin(self._METRIKA_STAT_URL, 'data')
+        headers = self.get_header()
+        params = {
+            'id': counter_id,
+            'metrics': 'ym:s:pageviews'
+        }
+        response = requests.get(url, params, headers=headers)
+        # pprint(response.json())
+        pageviews_count = response.json()['data'][0]['metrics'][0]
+        return pageviews_count
 
-metrika = YandexMetrika(TOKEN)
-print(YandexMetrika.__dict__)
-print(metrika.__dict__)
+    def get_users_count(self, counter_id):
+        url = urljoin(self._METRIKA_STAT_URL, 'data')
+        headers = self.get_header()
+        params = {
+            'id': counter_id,
+            'metrics': 'ym:s:users'
+        }
+        response = requests.get(url, params, headers=headers)
+        # pprint(response.json())
+        users_count = response.json()['data'][0]['metrics'][0]
+        return users_count
 
-print(metrika.counter_list)
 
-for counter in metrika.counter_list:
-    print(metrika.get_visits_count(counter))
+class YMControl(YandexMetrika):
+    def __init__(self, token):
+        self.token = token
+
+    def change_counter_name(self, counter_id, counter_name):
+        url = urljoin(self._METRIKA_MANAGEMENT_URL, 'counter/%d' % counter_id)
+        headers = self.get_header()
+        data = {
+            'counter': {
+                'name': counter_name
+            }
+        }
+        response = requests.put(url, json.dumps(data), headers=headers)
+        # pprint(response.json())
+        new_name = response.json()['counter']['name']
+        return new_name
+
+metrika_reports = YMReports(TOKEN)
+metrika_control = YMControl(TOKEN)
+
+for counter in metrika_reports.counter_list:
+    print('Информация по счетчику %d' % counter)
+    print('Суммарное количество визитов: %d' % metrika_reports.get_visits_count(counter))
+    print('Число просмотров страниц на сайте за отчетный период: %d' % metrika_reports.get_pageviews_count(counter))
+    print('Количество уникальных посетителей: %d' % metrika_reports.get_users_count(counter))
+
+counter = int(input('Номер счетчика для переименования: '))
+new_name = input('Новое название счетчика:')
+try:
+    print('Переименовано в "%s".' % metrika_control.change_counter_name(counter, new_name))
+except KeyError:
+    print('Ошибка')
+
+
