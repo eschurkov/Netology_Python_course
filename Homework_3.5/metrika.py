@@ -103,7 +103,7 @@ for counter in metrika_reports.counter_list:
     print('Число просмотров страниц на сайте за отчетный период: %d' % metrika_reports.get_pageviews_count(counter))
     print('Количество уникальных посетителей: %d' % metrika_reports.get_users_count(counter))
 
-counter = int(input('Номер счетчика для переименования: '))
+counter = int(input('Номер счетчика для переименования ({}): '.format(','.join(map(str, metrika_control.counter_list)))))
 new_name = input('Новое название счетчика:')
 try:
     print('Переименовано в "%s".' % metrika_control.change_counter_name(counter, new_name))
