@@ -109,5 +109,3 @@ try:
     print('Переименовано в "%s".' % metrika_control.change_counter_name(counter, new_name))
 except KeyError:
     print('Ошибка')
-
-
