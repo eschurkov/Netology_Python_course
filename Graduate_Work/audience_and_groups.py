@@ -3,14 +3,16 @@
 
 from urllib.parse import urlencode, urlparse, urljoin
 import requests
-from time import sleep
 import json
 import os
 import time
+import datetime
 import re
-from pprint import pprint
+from collections import Counter
 
 
+# функция получения токена Вконтакте
+# проверяет текущий токен, если нет доступа, то предлагает пройти аутентификацию
 def vk_auth():
     with open('config.json') as config:
         config_data = json.load(config)
@@ -42,80 +44,28 @@ def vk_auth():
     return config_data['access_token']
 
 
+# функция записывает данные в файл
 def get_json_file(json_data, json_filename='top100.json'):
     with open(json_filename, 'w', encoding='utf-8') as json_file:
         json.dump(json_data, json_file, ensure_ascii=False, indent=2)
 
 
+# класс, включающий методы для работы с API (v.5.63) Вконтакте для анализа аудитории
 class Vk(object):
     _VK_API_URL = 'https://api.vk.com/method/'
     _VERSION = '5.63'
     params = {
         'access_token': None,
         'v': _VERSION,
-        'user_id': None,
         'count': 1000,
-        'offset': 0,
-        'extended': 1
+        'offset': 0
     }
 
     def __init__(self, token):
         self.params['access_token'] = token
 
-    def get_list(self, method, uid):
-        url = urljoin(self._VK_API_URL, method)
-        self.params['group_id'] = uid
-        self.params['user_id'] = uid
-        self.params['offset'] = 0
-        result_list = list()
-        while True:
-            response = requests.get(url, self.params).json()
-            if 'error' in response:
-                print('Ошибка: {}. Данные для id={} не собраны.'.
-                      format(response['error']['error_msg'], uid))
-            else:
-                response = response['response']['items']
-                result_list.extend(response)
-            # к методам API ВКонтакте можно обращаться не чаще 3 раз в секунду
-            sleep(0.3)
-            # если длина ответа меньше 1000, то дальше данных нет
-            if len(response) < 1000:
-                break
-            print(self.params['offset'])
-            self.params['offset'] += 1000
-
-        return result_list
-
-    @staticmethod
-    def groups_dict_construct(list_data, groups):
-        for group in list_data:
-            if group['id'] in groups:
-                groups[group['id']]['count'] += 1
-            else:
-                ag = {
-                    group['id']: {'title': group['name'], 'count': 1}
-                }
-                groups.update(ag)
-        return groups
-
-    def get_top_followers_groups(self, user, friends=True, followers=True):
-        followers_list = list()
-        if friends:
-            followers_list = self.get_list('friends.get', user)
-        if followers:
-            followers_list.extend(self.get_list('users.getFollowers', user))
-        groups = dict()
-        print('Всего подписчиков: {}'.format(len(followers_list)))
-        i = 0
-        for user_id in followers_list:
-            i += 1
-            print('Обрабатываем пользователя №{} (id={}). Осталось {} подпичисков.'.
-                  format(i, user_id, len(followers_list) - i))
-            self.groups_dict_construct(self.get_list('groups.get', user_id), groups)
-        groups_list = sorted(list(groups.values()), key=lambda x: x['count'], reverse=True)[:100]
-        return groups_list
-
-    # метод execute позволит увеличить скорость обработки в 25 раз (в теории, на практике ~ в 16 раз)
+    # метод собирает id друзей и подписичков пользователя Вконтакте
+    # метод API execute позволит увеличить скорость обработки в 25 раз (в теории, на практике ~ в 16 раз)
     def get_list_by_id(self, method, uid):
         url = urljoin(self._VK_API_URL, 'execute')
         result_list = list()
@@ -124,6 +74,7 @@ class Vk(object):
         with open(script_path, encoding='utf-8') as script_file:
             source_code = script_file.read()
         while True:
+            # используется re.sub вместо replace, так как source_code - не строка
             code = re.sub('@uid@', str(uid), source_code)
             code = re.sub('@offset@', str(offset), code)
             code = re.sub('@method@', method, code)
@@ -138,22 +89,26 @@ class Vk(object):
             if len(response) < 25000:
                 break
             # к методам API ВКонтакте можно обращаться не чаще 3 раз в секунду
-            sleep(0.3)
-            print(offset)
+            time.sleep(0.3)
             offset += 25000
+        self.params.pop('code')
         return result_list
 
-    def get_groups_by_list(self, user_list):
-        user_list = [125435, 207270, 3528564, 1405118, 1405188]  # debug
+    # метод собирает group_id групп пользователей, user_id которых переданы в параметре user_list
+    def get_groups_by_ids(self, method, user_list):
         url = urljoin(self._VK_API_URL, 'execute')
         result_list = list()
-        script_path = os.path.join('vk_scripts', 'api_execute_get_groups_by_list.js')
+        script_path = os.path.join('vk_scripts', 'api_execute_get_data_by_list.js')
         with open(script_path, encoding='utf-8') as script_file:
             source_code = script_file.read()
         users_processed = 0
-        while users_processed < len(user_list):
+        user_count = len(user_list)
+        start_time = time.time()
+        print('Начало сбора данных...')
+        while users_processed < user_count:
             check_list = user_list[users_processed:users_processed + 25]
             code = re.sub('@uslist@', ','.join(map(str, check_list)), source_code)
+            code = re.sub('@method@', method, code)
             self.params['code'] = code
             response = requests.get(url, self.params).json()
             if 'execute_errors' in response:
@@ -165,25 +120,65 @@ class Vk(object):
                               )
             if 'response' in response:
                 result_list.extend(response['response']['items'])
-            users_processed += response['response']['users_processed']
+                users_processed += response['response']['users_processed']
+                passed_time = round(time.time() - start_time)
+                time_to_end = round((passed_time * user_count) / users_processed - passed_time)
+                if time_to_end != 0:
+                    print('Обработано {} пользователей. До конца осталось примерно {}...'.
+                          format(users_processed, datetime.timedelta(seconds=time_to_end))
+                          )
+                else:
+                    print('Сбор данных завершен. Обработано {} пользователей. Прошло {}.'.
+                          format(users_processed, datetime.timedelta(seconds=passed_time))
+                          )
+            if 'error' in response:
+                print(response)
+            # на практике в этом запросе пауза не требуется, так как ограничение частоты запросов не срабатывает
+            # принеобходимости установить значение от 0.1 до 0.3
+            # time.sleep(0.3)
+        self.params.pop('code')
         return result_list
 
+    # метод возвращает информацию по списку group_id групп, переданных в параметре top_groups_list
+    def get_groups_info(self, top_groups_list):
+        url = urljoin(self._VK_API_URL, 'groups.getById')
+        self.params['group_ids'] = ','.join(map(str, top_groups_list))
+        response = requests.get(url, self.params).json()
+        self.params.pop('group_ids')
+        if 'error' in response:
+            print('Ошибка сбора данных: {}'.format(response['error']['error_msg']))
+        elif 'response' in response:
+            return response['response']
+
+    # метод возвращает топ-100 групп по численности друзей и подписчиков пользователя Вконтакте
+    def get_top_followers_groups(self, user, friends=True, followers=True):
+        followers_list = list()
+        if friends:
+            followers_list = self.get_list_by_id('friends.get', user)
+        if followers:
+            followers_list.extend(self.get_list_by_id('users.getFollowers', user))
+        print('Всего подписчиков: {}'.format(len(followers_list)))
+        all_groups = self.get_groups_by_ids('groups.get', followers_list)
+        top_groups = Counter(all_groups).most_common(100)
+        top_groups_ids = [gid for gid, count in top_groups]
+        top_groups_info = self.get_groups_info(top_groups_ids)
+        groups_list = [{'id': tgi['id'], 'name': tgi['name'], 'count': tg[1]}
+                       for tgi, tg in zip(top_groups_info, top_groups)]
+        return groups_list
 
 if __name__ == "__main__":
+    # получаем токен Вконтакте
     token = vk_auth()
-
+    # запрашиваем id пользователя Вконтакте (celebrity_id = 80491907)
     while True:
         try:
             celebrity_id = int(input('Введите ID пользователя Вконтакте: '))
             break
         except ValueError:
             print('ID должен состоять из цифр')
-    # celebrity_id = 80491907
-
-    filename = input('Имя файла для записи JSON (top_groups.json): ')
+    # запрашиваем имя для файла с результатом (не даем перезаписать конфиг)
+    filename = input('Имя файла для записи JSON (top100.json): ')
     filename = filename if filename and filename != 'config.json' else 'top100.json'
-
+    # создаем экземпляр класса и проводим сбор и запись данных (ключ followers=False отключает сбор подписчиков)
     vk_client = Vk(token)
-    print('start execute', time.time())
     get_json_file(vk_client.get_top_followers_groups(celebrity_id, followers=False), json_filename=filename)
-    print('end execute1', time.time())
