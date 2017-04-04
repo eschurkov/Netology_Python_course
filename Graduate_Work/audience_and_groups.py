@@ -45,9 +45,10 @@ def vk_auth():
 
 
 # функция записывает данные в файл
-def get_json_file(json_data, json_filename='top100.json'):
+def get_json_file(json_data, json_filename):
     with open(json_filename, 'w', encoding='utf-8') as json_file:
         json.dump(json_data, json_file, ensure_ascii=False, indent=2)
+        print('Данные сохранены в файл "{}"'.format(json_filename))
 
 
 # класс, включающий методы для работы с API (v.5.63) Вконтакте для анализа аудитории
@@ -66,31 +67,48 @@ class Vk(object):
 
     # метод собирает id друзей и подписичков пользователя Вконтакте
     # метод API execute позволит увеличить скорость обработки в 25 раз (в теории, на практике ~ в 16 раз)
-    def get_list_by_id(self, method, uid):
+    def get_list_by_id(self, method, uid, fields=''):
         url = urljoin(self._VK_API_URL, 'execute')
         result_list = list()
         offset = 0
         script_path = os.path.join('vk_scripts', 'api_execute_get_list_by_id.js')
         with open(script_path, encoding='utf-8') as script_file:
             source_code = script_file.read()
+        start_time = time.time()
+        print('Собираем данные:')
         while True:
+            code = source_code
             # используется re.sub вместо replace, так как source_code - не строка
-            code = re.sub('@uid@', str(uid), source_code)
-            code = re.sub('@offset@', str(offset), code)
-            code = re.sub('@method@', method, code)
+            replace_dict = {'@uid@': str(uid), '@offset@': str(offset), '@method@': method, '@fields@': fields}
+            for key, value in replace_dict.items():
+                code = re.sub(key, value, code)
             self.params['code'] = code
             response = requests.get(url, self.params).json()
             if 'execute_errors' in response:
                 print('Ошибка: {}. Данные для id={} не собраны.'.
                       format(response['execute_errors'][0]['error_msg'], uid))
-            else:
-                response = response['response']['items']
-                result_list.extend(response)
-            if len(response) < 25000:
+            if 'response' in response:
+                result_list.extend(response['response']['items'])
+                passed_time = time.time() - start_time
+                time_to_end = (passed_time * response['response']['total_count']) / len(result_list) - passed_time
+                if len(result_list) != response['response']['total_count']:
+                    print('Собрано {} из {} за {}. До конца осталось примерно {}...'.
+                          format(len(result_list),
+                                 response['response']['total_count'],
+                                 datetime.timedelta(seconds=round(passed_time)),
+                                 datetime.timedelta(seconds=round(time_to_end)))
+                          )
+                else:
+                    print('Сбор данных ({}) завершен за {}.'.
+                          format(len(result_list), datetime.timedelta(seconds=round(passed_time))))
+                offset += 25000
+            if 'error' in response:
+                print('Ошибка сбора данных:', response['error']['error_msg'])
+            if len(response['response']['items']) < 25000:
                 break
-            # к методам API ВКонтакте можно обращаться не чаще 3 раз в секунду
-            time.sleep(0.3)
-            offset += 25000
+            # на практике в этом запросе пауза не требуется, так как ограничение частоты запросов не срабатывает
+            # при необходимости установить значение от 0.1 до 0.3
+            # time.sleep(0.3)
         self.params.pop('code')
         return result_list
 
@@ -104,8 +122,8 @@ class Vk(object):
         users_processed = 0
         user_count = len(user_list)
         start_time = time.time()
-        print('Начало сбора данных...')
-        while users_processed < user_count:
+        print('Начало обработки данных...')
+        while True:
             check_list = user_list[users_processed:users_processed + 25]
             code = re.sub('@uslist@', ','.join(map(str, check_list)), source_code)
             code = re.sub('@method@', method, code)
@@ -114,27 +132,30 @@ class Vk(object):
             if 'execute_errors' in response:
                 for key, error in enumerate(response['execute_errors']):
                     if error['method'] == 'groups.get':
-                        print('Ошибка: {}. Данные для id={} не собраны.'.
+                        print('Ошибка: {}. Данные для id={} не найдены.'.
                               format(response['execute_errors'][key]['error_msg'],
                                      response['response']['user_errors'][key])
                               )
             if 'response' in response:
                 result_list.extend(response['response']['items'])
                 users_processed += response['response']['users_processed']
-                passed_time = round(time.time() - start_time)
-                time_to_end = round((passed_time * user_count) / users_processed - passed_time)
-                if time_to_end != 0:
-                    print('Обработано {} пользователей. До конца осталось примерно {}...'.
-                          format(users_processed, datetime.timedelta(seconds=time_to_end))
+                passed_time = time.time() - start_time
+                time_to_end = (passed_time * user_count) / users_processed - passed_time
+                if users_processed != user_count:
+                    print('Обработано {} пользователей за {}. До конца осталось примерно {}...'.
+                          format(users_processed,
+                                 datetime.timedelta(seconds=round(passed_time)),
+                                 datetime.timedelta(seconds=round(time_to_end)))
                           )
                 else:
-                    print('Сбор данных завершен. Обработано {} пользователей. Прошло {}.'.
-                          format(users_processed, datetime.timedelta(seconds=passed_time))
+                    print('Обработка данных завершена. Получена информация по {} пользователям за {}.'.
+                          format(users_processed, datetime.timedelta(seconds=round(passed_time)))
                           )
+                    break
             if 'error' in response:
-                print(response)
+                print('Ошибка обработки:', response['error']['error_msg'])
             # на практике в этом запросе пауза не требуется, так как ограничение частоты запросов не срабатывает
-            # принеобходимости установить значение от 0.1 до 0.3
+            # при необходимости установить значение от 0.1 до 0.3
             # time.sleep(0.3)
         self.params.pop('code')
         return result_list
@@ -146,7 +167,8 @@ class Vk(object):
         response = requests.get(url, self.params).json()
         self.params.pop('group_ids')
         if 'error' in response:
-            print('Ошибка сбора данных: {}'.format(response['error']['error_msg']))
+            print('Ошибка обработки данных: {}'.format(response['error']['error_msg']))
+            return False
         elif 'response' in response:
             return response['response']
 
@@ -181,4 +203,18 @@ if __name__ == "__main__":
     filename = filename if filename and filename != 'config.json' else 'top100.json'
     # создаем экземпляр класса и проводим сбор и запись данных (ключ followers=False отключает сбор подписчиков)
     vk_client = Vk(token)
-    get_json_file(vk_client.get_top_followers_groups(celebrity_id, followers=False), json_filename=filename)
+
+    print('Сбор информации о группах друзей и подписичиков пользователя с id={}'.format(celebrity_id))
+    top_100_groups = vk_client.get_top_followers_groups(celebrity_id, followers=True)
+    get_json_file(top_100_groups, filename)
+
+    print('Сбор информации об участниках топ-5 групп.')
+    for group in top_100_groups[:5]:
+        print('Сообщество "{}":'.format(group['name']))
+        members_list = vk_client.get_list_by_id('groups.getMembers', group['id'], 'sex, bdate')
+        data_dir = 'members_data'
+        if not os.path.isdir(data_dir):
+            os.mkdir(data_dir)
+        file_path = os.path.join(data_dir, 'top_group_{}_members.json'.format(group['id']))
+        get_json_file(members_list, file_path)
+
