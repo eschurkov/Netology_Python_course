@@ -101,14 +101,14 @@ class Vk(object):
                 else:
                     print('Сбор данных ({}) завершен за {}.'.
                           format(len(result_list), datetime.timedelta(seconds=round(passed_time))))
+                if len(response['response']['items']) < 25000:
+                    break
                 offset += 25000
             if 'error' in response:
                 print('Ошибка сбора данных:', response['error']['error_msg'])
-            if len(response['response']['items']) < 25000:
-                break
-            # на практике в этом запросе пауза не требуется, так как ограничение частоты запросов не срабатывает
+            # пауза для ограничения частоты запросов
             # при необходимости установить значение от 0.1 до 0.3
-            # time.sleep(0.3)
+            time.sleep(0.2)
         self.params.pop('code')
         return result_list
 
@@ -154,7 +154,7 @@ class Vk(object):
                     break
             if 'error' in response:
                 print('Ошибка обработки:', response['error']['error_msg'])
-            # на практике в этом запросе пауза не требуется, так как ограничение частоты запросов не срабатывает
+            # пауза для ограничения частоты запросов
             # при необходимости установить значение от 0.1 до 0.3
             # time.sleep(0.3)
         self.params.pop('code')
@@ -184,7 +184,7 @@ class Vk(object):
         top_groups = Counter(all_groups).most_common(100)
         top_groups_ids = [gid for gid, count in top_groups]
         top_groups_info = self.get_groups_info(top_groups_ids)
-        groups_list = [{'id': tgi['id'], 'name': tgi['name'], 'count': tg[1]}
+        groups_list = [{'id': tgi['id'], 'title': tgi['name'], 'count': tg[1]}
                        for tgi, tg in zip(top_groups_info, top_groups)]
         return groups_list
 
@@ -210,11 +210,10 @@ if __name__ == "__main__":
 
     print('Сбор информации об участниках топ-5 групп.')
     for group in top_100_groups[:5]:
-        print('Сообщество "{}":'.format(group['name']))
+        print('Сообщество "{}":'.format(group['title']))
         members_list = vk_client.get_list_by_id('groups.getMembers', group['id'], 'sex, bdate')
         data_dir = 'members_data'
         if not os.path.isdir(data_dir):
             os.mkdir(data_dir)
         file_path = os.path.join(data_dir, 'top_group_{}_members.json'.format(group['id']))
         get_json_file(members_list, file_path)
-
