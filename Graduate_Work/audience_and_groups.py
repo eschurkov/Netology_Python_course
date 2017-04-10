@@ -188,6 +188,21 @@ class Vk(object):
                        for tgi, tg in zip(top_groups_info, top_groups)]
         return groups_list
 
+    # метод приниает список групп и записывает данные об их участниках в файлы json
+    def get_members_info(self, groups_list, data_dir='members_data'):
+        for group in groups_list:
+            print('Сообщество "{}":'.format(group['title']))
+            members_list = self.get_list_by_id('groups.getMembers', group['id'], 'sex, bdate')
+            # чистим данные. это позволит сократить объём файла (функция map работает медленнее)
+            members_info_clean = [
+                {'bdate': member['bdate'] if 'bdate' in member else None, 'sex': member['sex']}
+                for member in members_list
+                ]
+            if not os.path.isdir(data_dir):
+                os.mkdir(data_dir)
+            file_path = os.path.join(data_dir, 'group_{}_members.json'.format(group['id']))
+            get_json_file(members_info_clean, file_path)
+
 if __name__ == "__main__":
     # получаем токен Вконтакте
     token = vk_auth()
@@ -209,16 +224,4 @@ if __name__ == "__main__":
     get_json_file(top_100_groups, filename)
 
     print('Сбор информации об участниках топ-5 групп.')
-    for group in top_100_groups[:5]:
-        print('Сообщество "{}":'.format(group['title']))
-        members_list = vk_client.get_list_by_id('groups.getMembers', group['id'], 'sex, bdate')
-        # чистим данные. это позволит сократить объём файла (функция map работает медленнее)
-        members_info_clean = [
-            {'bdate': member['bdate'] if 'bdate' in member else None, 'sex': member['sex']}
-            for member in members_list
-            ]
-        data_dir = 'members_data'
-        if not os.path.isdir(data_dir):
-            os.mkdir(data_dir)
-        file_path = os.path.join(data_dir, 'group_{}_members.json'.format(group['id']))
-        get_json_file(members_list, file_path)
+    vk_client.get_members_info(top_100_groups[:5])
