@@ -1,7 +1,7 @@
 {
-  "service_token": "51350027513500275135002740516c6889551355135002709e800692caebd0e98cb7e98",
-  "client_secret": "VyyoFEgcPai08zb0DqUr",
   "app_id": 5859502,
+  "access_token": "0ca9a1f7080ec14747a2dc739c723e904998af5a0c9678940ef2e3653e5226910dee21f99effa68c13b99",
   "api_version": "5.63",
-  "access_token": "7f95b4ed8bd89f9bcbdcf65b7ab409a42109e36c47779e344b303711fa6473cd1b2d7f4e430404b4f85bc"
+  "service_token": "51350027513500275135002740516c6889551355135002709e800692caebd0e98cb7e98",
+  "client_secret": "VyyoFEgcPai08zb0DqUr"
 }
